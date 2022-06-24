@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+packages/
+MigrationBackup/
+/FodyWeavers.xml
+/FodyWeavers.xsd
