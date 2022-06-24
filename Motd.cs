@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Motd
 {
@@ -9,16 +10,40 @@ namespace Motd
     {
         static void Main(string[] args)
         {
-            if (args.Length != 2)
+            Socket client;
+            IPAddress ip = null;
+            if (args.Length != 3)
             {
-                Console.WriteLine("Usage:  Motd.exe <ip> <port>");
+                Console.WriteLine("Usage:  Motd.exe <type:udp|tcp> <ip> <port>");
                 Environment.Exit(1);
             }
             else
             {
                 try
                 {
-                    Socket client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                    if (!new Regex(
+                        @"((?:(?:25[0-5]|2[0-4]\d|((1\d{2})|([1-9]?\d)))\.){3}(?:25[0-5]|2[0-4]\d|((1\d{2})|([1-9]?\d))))")
+                        .IsMatch(args[1]))
+                    {
+                        IPAddress[] IPs = Dns.GetHostAddresses(args[1]);
+                        ip = IPs[0];
+                    }
+                    else
+                    {
+                        ip = IPAddress.Parse(args[1]);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    Environment.Exit(1);
+                }
+            }
+            if (args[0].ToLower() == "udp")
+            {
+                try
+                {
+                    client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                     client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 5000);
                     client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendTimeout, 5000);
                     client.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 0));
@@ -32,8 +57,8 @@ namespace Motd
                     }
                     DateTime StartTime = DateTime.Now;
                     client.SendTo(sendBytes, new IPEndPoint(
-                        IPAddress.Parse(args[0]),
-                        int.TryParse(args[1], out int j) ? j : -1)
+                        ip,
+                        int.TryParse(args[2], out int j) ? j > 0 && j < 65536 ? j : 0 : 0)
                         );
                     EndPoint point = new IPEndPoint(IPAddress.Any, 0);
                     byte[] buffer = new byte[1024];
@@ -42,11 +67,39 @@ namespace Motd
                         Encoding.UTF8.GetString(buffer, 35, length - 35) :
                         Encoding.UTF8.GetString(buffer, 0, length);
                     client.Close();
-                    Console.WriteLine("[Success]" + Data);
+                    Console.WriteLine(Data);
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("[Failure]" + e.Message);
+                    Console.WriteLine(e.Message);
+                    Environment.Exit(1);
+                }
+            }
+            else if (args[0].ToLower() == "tcp")
+            {
+                try
+                {
+                    client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 5000);
+                    client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendTimeout, 5000);
+                    client.Connect(
+                        new IPEndPoint(
+                            ip,
+                            int.TryParse(args[2], out int j) ? j > 0 && j < 65536 ? j : 0 : 0
+                            )
+                        );
+                    client.Send(
+                        new byte[] { 6, 0, 0, 0, 0x63, 0xdd, 1, 1, 0 }
+                        );
+                    byte[] buffer = new byte[1024 * 1024];
+                    int length = client.Receive(buffer);
+                    string Data = Encoding.UTF8.GetString(buffer, 0, length);
+                    client.Close();
+                    Console.WriteLine(Data);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
                     Environment.Exit(1);
                 }
             }
