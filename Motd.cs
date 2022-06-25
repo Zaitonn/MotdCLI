@@ -12,9 +12,10 @@ namespace Motd
         {
             Socket client;
             IPAddress ip = null;
-            if (args.Length != 3)
+            int port = 0;
+            if (args.Length != 3 && args.Length != 2)
             {
-                Console.WriteLine("Usage:  Motd.exe <type:udp|tcp> <ip> <port>");
+                Console.WriteLine($"Usage:  {AppDomain.CurrentDomain.FriendlyName} <udp|tcp> <ip> [port]");
                 Environment.Exit(1);
             }
             else
@@ -31,6 +32,14 @@ namespace Motd
                     else
                     {
                         ip = IPAddress.Parse(args[1]);
+                    }
+                    if (args.Length == 3)
+                    {
+                        port = int.TryParse(args[2], out int j) ? j > 0 && j < 65536 ? j : 0 : 0;
+                    }
+                    else if (args.Length == 2)
+                    {
+                        port = args[0].ToLower() == "udp" ? 19132 : args[0].ToLower() == "tcp" ? 25565 : 0;
                     }
                 }
                 catch (Exception e)
@@ -58,7 +67,7 @@ namespace Motd
                     DateTime StartTime = DateTime.Now;
                     client.SendTo(sendBytes, new IPEndPoint(
                         ip,
-                        int.TryParse(args[2], out int j) ? j > 0 && j < 65536 ? j : 0 : 0)
+                        port)
                         );
                     EndPoint point = new IPEndPoint(IPAddress.Any, 0);
                     byte[] buffer = new byte[1024];
@@ -85,7 +94,7 @@ namespace Motd
                     client.Connect(
                         new IPEndPoint(
                             ip,
-                            int.TryParse(args[2], out int j) ? j > 0 && j < 65536 ? j : 0 : 0
+                            port
                             )
                         );
                     client.Send(
