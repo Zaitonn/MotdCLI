@@ -55,7 +55,7 @@ namespace Motd
                     client = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                     client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 5000);
                     client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendTimeout, 5000);
-                    client.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 0));
+                    client.Bind(new IPEndPoint(IPAddress.Any, 0));
                     string[] Guids = Guid.NewGuid().ToString().ToUpper().Split('-');
                     int TickCount = Environment.TickCount;
                     string Text = $"01{TickCount.ToString("X").PadLeft(16, '0')}00FFFF00FEFEFEFEFDFDFDFD12345678{Guids[2]}{Guids[4]}";
@@ -102,7 +102,9 @@ namespace Motd
                         );
                     byte[] buffer = new byte[1024 * 1024];
                     int length = client.Receive(buffer);
-                    string Data = Encoding.UTF8.GetString(buffer, 0, length);
+                    string Data = length>5?
+                        Encoding.UTF8.GetString(buffer, 5, length-5):
+                        Encoding.UTF8.GetString(buffer, 0, length);
                     client.Close();
                     Console.WriteLine(Data);
                 }
